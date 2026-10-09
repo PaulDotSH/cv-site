@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paul-Andrei Abrudan, software engineer</title>
+<meta name="description" content="Paul-Andrei Abrudan, software system engineer at Intel: kernel and build infrastructure for the AI accelerators inside x86 CPUs. Rust, C, reverse engineering and application security. Timișoara, Romania.">
+<meta name="theme-color" content="#14161b">
+<meta property="og:type" content="profile">
+<meta property="og:title" content="Paul-Andrei Abrudan, software engineer">
+<meta property="og:description" content="Kernels, Rust, reverse engineering and application security. Software System Engineer at Intel.">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231a1d23'/%3E%3Cpath d='M3.5 4.5 7 8l-3.5 3.5' fill='none' stroke='%23a6d189' stroke-width='1.8'/%3E%3Crect x='8' y='10.6' width='4.5' height='1.8' fill='%23a6d189'/%3E%3C/svg%3E">
+<noscript><style>.app{display:none}</style></noscript>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* catppuccin-based, low-glare terminal palette */
+  :root{
+    --bg:#14161b; --bg2:#1a1d23; --bar:#1e222a; --sel:#2b3446; --sel2:#222833; --line:#2a2f39; --boot:#0e1013;
+    --fg:#d6dae1; --hi:#ffffff; --dim:#8a92a3; --dim2:#4f5666;
+    --blue:#8aadf4; --green:#a6d189; --yellow:#e5c890; --red:#ef9a9a; --cyan:#8bd5ca; --mag:#c6a0f6;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:var(--bg); color:var(--fg); font-family:"JetBrains Mono",ui-monospace,monospace;
+       font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased}
+  a{color:var(--cyan); text-decoration:underline; text-decoration-color:var(--dim2); text-underline-offset:3px}
+  a:hover{text-decoration-color:var(--cyan)}
+  a:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
+  button{font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; text-align:left}
+  b{color:var(--hi); font-weight:700}
+
+  .app{height:100vh; height:100dvh; display:grid; grid-template-rows:auto 1fr auto auto}
+
+  /* ranger title line */
+  .top{display:flex; justify-content:space-between; gap:12px 24px; flex-wrap:wrap; padding:8px 18px; border-bottom:1px solid var(--line)}
+  .top .path b{color:var(--fg)}
+  .u{color:var(--green); font-weight:700} .d{color:var(--blue); font-weight:700}
+  .top .links{display:flex; gap:22px; flex-wrap:wrap}
+
+  /* miller columns */
+  .cols{display:grid; grid-template-columns:var(--w1, minmax(170px,15%)) 1px var(--w2, minmax(260px,25%)) 1px minmax(0,1fr); min-height:0}
+  .col{overflow:auto; padding:8px 0; min-width:0}
+
+  /* draggable column borders; the visible line is 1px, the grab zone is wider */
+  .gutter{position:relative; background:var(--line); cursor:col-resize; touch-action:none; z-index:2; outline:none}
+  .gutter::before{content:""; position:absolute; inset:0 -5px}
+  .gutter:hover,.gutter.drag,.gutter:focus-visible{background:var(--yellow)}
+  body.resizing{cursor:col-resize; user-select:none}
+  .row{display:flex; justify-content:space-between; gap:14px; width:100%; padding:3px 16px; white-space:nowrap}
+  .row .nm{overflow:hidden; text-overflow:ellipsis}
+  .row .sz{color:var(--dim); flex:none}
+  .row.dir .nm{color:var(--blue); font-weight:700}
+  .row.sel{background:var(--sel)}
+  .left .row.sel{background:var(--sel2)}
+  .row.sel .nm{color:var(--hi)}
+  .row:focus{outline:none}
+  .row:focus-visible{box-shadow:inset 3px 0 0 var(--yellow)}
+  .ext-toml .nm{color:var(--yellow)} .ext-patch .nm{color:var(--green)} .ext-txt.crit .nm{color:var(--red)}
+
+  /* preview, styled like bat */
+  .preview{overflow:auto; min-width:0; position:relative}
+  .pf + .pf{border-top:1px solid var(--line)}
+  .pf .pvh{box-shadow:inset 3px 0 0 transparent}
+  .pf.cur .pvh{box-shadow:inset 3px 0 0 var(--yellow); background:var(--bg2)}
+  .pf.cur .pvh b{color:var(--yellow)}
+  .pvh{display:flex; justify-content:space-between; gap:16px; padding:8px 24px; color:var(--dim); border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:1}
+  .pvh b{color:var(--fg); font-weight:500}
+  .pv{counter-reset:ln; padding:18px 28px 40px 84px; max-width:calc(84ch + 112px); position:relative}
+  .pv::before{content:""; position:absolute; left:62px; top:0; bottom:0; border-left:1px solid var(--line)}
+  .ln{position:relative; margin:0 0 14px}
+  .ln::before{counter-increment:ln; content:counter(ln); position:absolute; left:-84px; width:44px; text-align:right; color:var(--dim2); font-size:14px; line-height:inherit}
+  .ln.code{margin:0; white-space:pre; overflow-x:visible}
+  .ln.code + .ln:not(.code){margin-top:14px}
+  .h1{color:var(--blue); font-weight:700; font-size:1.18em}
+  .h2{color:var(--mag); font-weight:700; margin-top:22px}
+  .mk{color:var(--dim2)}
+  .li{display:grid; grid-template-columns:2ch 1fr; margin-bottom:6px}
+  .li + .ln:not(.li){margin-top:14px}
+  code{color:var(--cyan); background:var(--bg2); border:1px solid var(--line); padding:0 6px; border-radius:3px; font-size:.92em}
+  .red{color:var(--red); font-weight:700}
+  .c{color:var(--dim)} .y{color:var(--yellow)} .cy{color:var(--cyan)} .g{color:var(--green)} .m{color:var(--mag)}
+  .blk{color:var(--blue)}
+
+  /* neofetch */
+  .neo{display:flex; gap:40px; flex-wrap:wrap; padding:24px 28px; align-items:flex-start}
+  .avatar{width:260px; height:auto; flex:none}
+  .neo .info div{white-space:pre-wrap}
+  .neo .k{color:var(--blue); font-weight:700}
+  .neo .rule{color:var(--dim2)}
+  .swatch{display:flex; margin-top:12px} .swatch i{width:28px; height:18px; display:block}
+  .tip{margin:4px 28px 28px; padding:14px 18px; border:1px dashed var(--line); color:var(--dim); max-width:84ch}
+  .tip b{color:var(--yellow); font-weight:500}
+
+  /* ranger status + tmux bar */
+  .status{display:flex; justify-content:space-between; gap:16px; padding:5px 18px; border-top:1px solid var(--line); color:var(--dim); white-space:nowrap; overflow:hidden}
+  .status .perm{color:var(--cyan)}
+  .tmux{display:flex; justify-content:space-between; gap:16px; padding:4px 18px; background:var(--bar); color:var(--dim); flex-wrap:wrap}
+  .tmux .w{color:var(--green)} .tmux .act{color:var(--bg); background:var(--green); padding:0 8px; font-weight:700}
+  .tmux kbd{font:inherit; color:var(--yellow)}
+
+  /* boot log: the one orchestrated moment */
+  #boot{position:fixed; inset:0; background:var(--boot); color:var(--fg); padding:24px 28px; z-index:10; white-space:pre-wrap; overflow:auto; cursor:pointer; font-size:15px; line-height:1.55}
+  #boot[hidden]{display:none}
+  #boot .ok{color:var(--green); font-weight:700} #boot .t{color:var(--dim)} #boot .h{color:var(--hi); font-weight:700}
+
+  .nojs{padding:28px; max-width:72ch}
+  #boot .skip{position:fixed; right:22px; bottom:16px; color:var(--dim)}
+
+  /* print / save as PDF: every folder, every file, on paper colours */
+  #print{display:none}
+  @media print{
+    :root{--bg:#fff; --bg2:#f3f4f6; --fg:#1b1d22; --hi:#000; --dim:#555b66; --dim2:#a0a6b0; --line:#d5d8de;
+          --blue:#1e4fb8; --mag:#6f37b0; --cyan:#0b6e66; --green:#3c6e1c; --yellow:#7a5c00; --red:#b3261e; color-scheme:light}
+    body{font-size:10.5pt; height:auto}
+    .app,#boot{display:none!important}
+    #print{display:block}
+    #print .pdir{color:var(--blue); font-weight:700; font-size:1.15em; margin:18px 0 6px; padding-bottom:4px; border-bottom:2px solid var(--fg)}
+    #print .pf{border:0; break-inside:avoid-page}
+    #print .pvh{position:static; background:none; padding:6px 0; border-bottom:1px solid var(--line)}
+    #print .pvh > span:nth-child(2),#print .tip{display:none}
+    #print .pv{max-width:none; padding:10px 0 14px 52px}
+    #print .pv::before{left:40px}
+    #print .ln::before{left:-52px; width:32px; font-size:9pt}
+    #print .ln.code{white-space:pre-wrap}
+    #print .neo{padding:12px 0} #print .avatar{width:150px}
+    @page{margin:14mm}
+  }
+
+  @media (max-width:760px){
+    body{font-size:15px}
+    .app{height:auto; min-height:100dvh}
+    .cols{display:block}
+    .col{border-right:0}
+    .gutter{display:none}
+    .left{display:flex; overflow-x:auto; gap:2px; padding:8px 10px; border-bottom:1px solid var(--line); scrollbar-width:none}
+    .left .row{width:auto; padding:4px 12px}
+    .left .row .sz{display:none}
+    .mid{padding:6px 0}
+    .row{padding:7px 14px}
+    .preview{border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--bg2); max-height:none}
+    .pvh{position:static; padding:8px 14px; background:var(--bg2); flex-wrap:wrap}
+    .pvh > span:nth-child(2){display:none}
+    .pvh b,code,.top{overflow-wrap:anywhere}
+    .cols,.preview{min-width:0; max-width:100vw}
+    .pv{padding:14px 14px 18px 50px}
+    .pv::before{left:40px}
+    .ln::before{left:-50px; width:30px; font-size:12px}
+    .ln.code{white-space:pre-wrap}
+    .neo{padding:16px 14px; gap:18px} .avatar{width:190px}
+    .tip{margin:0 14px 16px}
+    .status .hide-s,.tmux .hide-s{display:none}
+    #boot{font-size:12px; padding:16px 14px}
+  }
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<noscript><div class="nojs">
+  <p><b>Paul-Andrei Abrudan</b>, Software System Engineer at Intel: kernels, Rust, reverse engineering and application security.</p>
+  <p>This CV is an interactive terminal and needs JavaScript. Without it, you can reach me at <a href="mailto:paulandreiabrudan@proton.me">paulandreiabrudan@proton.me</a> or see my work at <a href="https://github.com/PaulDotSH">github.com/PaulDotSH</a>.</p>
+</div></noscript>
+
+<div id="boot" hidden aria-hidden="true"></div>
+<div id="print"></div>
+
+<div class="app">
+  <div class="top">
+    <span class="path"><span class="u">paul@foarte.top</span> <span class="d" id="cwd">~/about</span>/<b id="cfile"></b></span>
+    <span class="links"><a href="mailto:paulandreiabrudan@proton.me">paulandreiabrudan@proton.me</a><a href="https://github.com/PaulDotSH" target="_blank" rel="noopener">github.com/PaulDotSH</a></span>
+  </div>
+
+  <div class="cols">
+    <nav class="col left" id="left" aria-label="Folders"></nav>
+    <div class="gutter" id="g1" role="separator" aria-orientation="vertical" aria-controls="left" aria-label="Resize folders column" tabindex="0"></div>
+    <div class="col mid" id="mid" role="listbox" aria-label="Files"></div>
+    <div class="gutter" id="g2" role="separator" aria-orientation="vertical" aria-controls="mid" aria-label="Resize files column" tabindex="0"></div>
+    <section class="preview" id="preview" aria-live="polite"></section>
+  </div>
+
+  <div class="status">
+    <span><span class="perm">-rw-r--r--</span> paul paul <span id="ssize"></span> <span class="hide-s" id="sdate"></span> <span id="sname"></span></span>
+    <span id="spos"></span>
+  </div>
+  <div class="tmux">
+    <span><span class="w">[cv]</span> <span class="act">0:ranger*</span></span>
+    <span class="hide-s"><kbd>←→</kbd> folders &nbsp; <kbd>↑↓</kbd> files &nbsp; <kbd>Enter</kbd> open link</span>
+    <span id="clock"></span>
+  </div>
+</div>
+
+<script>
+const GH = "https://github.com/PaulDotSH/";
+
+/* ---------- content: the home directory ---------- */
+const FS = [
+  {name: "about", files: [
+    {name: "neofetch.txt", kind: "neo"},
+    {name: "whoami.md", src: `
+# whoami
+
+Software System Engineer at **Intel**. For the last four years I've worked on kernel and build-system infrastructure for the **first AI accelerators shipped inside x86 CPUs** (14th-gen mobile and later).
+
+I like understanding code all the way down and squeezing performance out of it.
+
+Away from work I write low-level Rust and C: memory-introspection connectors, a proof-of-work captcha, file-encryption and cryptographic tooling, a party-game backend, and [sailfish-minify](${GH}sailfish-minify), a standalone minification crate for the Sailfish template engine.
+
+I also take other people's software apart to see how it breaks, report it, and sometimes take it to a CVE. The rest of my time goes into [foarte.top](https://foarte.top), a growing family of daily Romanian browser games.
+
+## focus
+- low-level systems and performance
+- security research and responsible disclosure
+
+## based
+Timișoara, Romania. Remote-friendly.`},
+    {name: "contact.txt", href: "mailto:paulandreiabrudan@proton.me", src: `
+# contact
+
+- email: [paulandreiabrudan@proton.me](mailto:paulandreiabrudan@proton.me)
+- phone: [+40 772 237 279](tel:+40772237279)
+- github: [github.com/PaulDotSH](https://github.com/PaulDotSH)
+
+Email is the fastest way to reach me.`},
+  ]},
+  {name: "experience", files: [
+    {name: "intel.md", href: "https://www.intel.com", src: `
+# Software System Engineer, Intel
+
+\`Sept 2022 to present\` \`C\` \`C++\` \`CMake\` \`Python\`
+
+Kernel and build infrastructure for AI accelerators.
+
+## what I do
+- Build kernel and build-system infrastructure for the **first AI accelerator chips integrated into x86 processors** (Intel 14th-gen and later mobile CPUs), including advanced build automation.
+- Rebuilt the iteration pipeline so build-and-test time dropped from **~5 minutes to under 10 seconds** on weaker hardware, keeping the features that mattered and adding debugging support.
+- Cut non-coding time across **multiple teams** by building an internal AI agent and automating repetitive work: server registration, provisioning and setup.
+- Wrote a watchdog that tracks performance regressions and keeps the shared test servers healthy and easy to use, so teams stop losing hours to broken environments.
+
+## build-and-test loop
+\`\`\`
+before  ████████████████████████████████████████  ~300 s
+after   █  <10 s
+\`\`\``},
+  ]},
+  {name: "projects", files: [
+    {name: "vuln-driver-aida64.md", href: GH + "vuln-driver-aida64", src: `
+# vuln-driver-aida64
+
+\`C\` \`reverse engineering\` \`kernel driver\`
+
+Arbitrary **physical-memory and MSR read/write** in the AIDA64 kernel driver, reachable from an **unprivileged, non-admin process**: the device object ships with no ACL.
+
+## in the repo
+- every vulnerable IOCTL, documented
+- a self-verifying PoC that proves R/W without weaponizing it
+
+## disclosure
+Reported to LOLDrivers and MITRE. Advisory [GHSA-xp8w-jxfc-xrqq](https://github.com/advisories/GHSA-xp8w-jxfc-xrqq).
+
+[github.com/PaulDotSH/vuln-driver-aida64](${GH}vuln-driver-aida64)`},
+    {name: "memflow-procmem.md", href: GH + "memflow-procmem", src: `
+# memflow-procmem
+
+\`Rust\` \`memory introspection\`
+
+A **memflow** connector that reads and writes Linux process memory straight through \`/proc/pid/mem\` and \`/proc/pid/map_files\`, exposing a live process to memflow's introspection API.
+
+[github.com/PaulDotSH/memflow-procmem](${GH}memflow-procmem)`},
+    {name: "wannatry.md", src: `
+# wannatry
+
+\`Rust\` \`cryptography\`
+
+File-encryption study using offline key generation: per-file **ChaCha20** keys wrapped with **RSA-4096**, multi-threaded.
+
+Files stay unrecoverable without the private key, even under full network surveillance.
+
+The repository is private.`},
+    {name: "process-critical.md", href: GH + "process-critical", src: `
+# process-critical
+
+\`Rust\` \`Windows\`
+
+A tiny Windows library that marks the current process as **critical**, so terminating it takes the whole system down with it.
+
+[github.com/PaulDotSH/process-critical](${GH}process-critical)`},
+    {name: "memory-downloader.md", href: GH + "Memory-Downloader", src: `
+# Memory Downloader
+
+\`C#\` \`Windows internals\`
+
+PoC for executing a payload **entirely in memory**, never touching disk, to sidestep on-write AV heuristics. An exercise in low-level Windows internals and detection surfaces.
+
+[github.com/PaulDotSH/Memory-Downloader](${GH}Memory-Downloader)`},
+    {name: "master-thesis.md", href: GH + "master-thesis", src: `
+# master-thesis
+
+\`research\` \`Rust\` \`supply chain\`
+
+MSc research mapping **supply-chain attack patterns** across the entire Rust crate ecosystem: how a malicious crate gets in, what it can reach, and where the weak seams are.
+
+[github.com/PaulDotSH/master-thesis](${GH}master-thesis)`},
+    {name: "sailfish-minify.md", href: GH + "sailfish-minify", src: `
+# sailfish-minify
+
+\`Rust\` \`standalone crate\`
+
+Compile-time HTML/CSS minification for **Sailfish**, Rust's fastest template engine. A separate crate of mine, not part of Sailfish itself.
+
+- pure-Rust and in-process by default: WASM-compatible, no system tools
+- parallelized and cached
+- opt-in CLI backends
+
+Spun out of my licence thesis, \`bachelor-project-uvt-dct\`.
+
+[github.com/PaulDotSH/sailfish-minify](${GH}sailfish-minify)`},
+    {name: "pow-captcha.md", href: GH + "pow-captcha", src: `
+# pow-captcha
+
+\`Rust\` \`WASM\` \`Ed25519\`
+
+Self-contained proof-of-work captcha.
+
+- **Ed25519-signed stateless mode**: no server-side session
+- Redis, PostgreSQL and SQLite backends
+- WASM build for the client challenge
+
+[github.com/PaulDotSH/pow-captcha](${GH}pow-captcha)`},
+    {name: "bachelor-project-uvt-dct.md", href: GH + "bachelor-project-uvt-dct", src: `
+# bachelor-project-uvt-dct
+
+\`Rust\` \`Axum\` \`Sailfish\`
+
+Licence thesis: a scalable, high-performance rewrite of a university platform on **Axum and Sailfish**. sailfish-minify was spun out of this work.
+
+[github.com/PaulDotSH/bachelor-project-uvt-dct](${GH}bachelor-project-uvt-dct)`},
+    {name: "rookie-sideloader.md", href: "https://github.com/nerdunit/androidsideloader", src: `
+# Rookie's Sideloader
+
+\`C#\` \`2M+ downloads\`
+
+VR sideloading platform turned full marketplace: discover, download, update and manage VR and non-VR content.
+
+**2M+ downloads** on GitHub; now community-maintained.
+
+[github.com/nerdunit/androidsideloader](https://github.com/nerdunit/androidsideloader)`},
+    {name: "foarte.top.md", href: "https://foarte.top", src: `
+# foarte.top
+
+\`web\` \`Rust\` \`games\`
+
+A growing family of **Romanian browser games**. Free, no app and no account.
+
+## jocuri.foarte.top
+Party games in Romanian for **3 to 8 friends**: a TV or laptop is the game board and everyone's phone is the controller.
+
+- **13 original games**, such as an absurd bureaucracy-desk game, finishing proverbs, and faking definitions of rare words
+- runs on my own Rust party-game platform: Axum HTTP/WebSocket transport, single-owner room actors with reconnection and deduplication, versioned MessagePack protocol
+- no database required
+
+## trap.foarte.top
+Wordle for rap lyrics: a deterministic daily verse where you guess the missing word, the artist, the song and the album. Daily, unlimited, custom-selection and album modes.
+
+- [foarte.top](https://foarte.top)
+- [jocuri.foarte.top](https://jocuri.foarte.top)
+- [trap.foarte.top](https://trap.foarte.top)`},
+  ]},
+  {name: "disclosures", files: [
+    {name: "README.md", src: `
+# disclosures
+
+Everything here was reported privately to its owner, and nothing was exfiltrated.
+
+Targets stay anonymous. The AIDA64 driver is the exception: it has a public vendor advisory.`},
+    {name: "payment-forging.txt", crit: true, src: `
+# payment forging
+
+**severity:** !!critical!!
+
+Unlocked paid and premium features on a web app by changing a single field in the request:
+
+\`\`\`
+paid=0  ->  paid=2
+\`\`\`
+
+No charge, full account benefits. Worked on both GET and POST.`},
+    {name: "broken-auth.txt", src: `
+# broken auth and API design
+
+**severity:** high
+
+A full chain of flaws on one web app, reported as a single list:
+
+- an email address could be confirmed without any access to that inbox
+- authentication parameters sat in the URL, making a credential-stuffing bot trivial to write
+- an unauthenticated photo API let anyone scrape every user's images
+- messages could be sent, and users blocked, through the API without the other party's consent; a block could be bypassed once via the same endpoint
+- an incoming message leaked the sender's email address
+- opening a conversation loaded **every** message at once instead of paging or caching, so a heavy inbox slowed the whole app to a crawl`},
+    {name: "exposed-supabase.txt", src: `
+# exposed database via public key
+
+**severity:** high
+
+A public **Supabase** API key gave direct read access to the full user table: names, emails, roles, phone numbers, business data, resume URLs and push subscriptions.
+
+Reported before anything was touched.`},
+    {name: "aida64-driver.txt", crit: true, href: "https://github.com/advisories/GHSA-xp8w-jxfc-xrqq", src: `
+# AIDA64 kernel driver
+
+**severity:** !!critical!!   **status:** publicly disclosed
+
+Arbitrary physical memory and MSR read/write from an unprivileged process (see \`~/projects/vuln-driver-aida64.md\`), taken through the full vendor and advisory process.
+
+- [LOLDrivers #461](https://github.com/magicsword-io/LOLDrivers/issues/461)
+- [GHSA-xp8w-jxfc-xrqq](https://github.com/advisories/GHSA-xp8w-jxfc-xrqq)`},
+  ]},
+  {name: "upstream", files: [
+    {name: "sailfish.patch", href: "https://github.com/rust-sailfish/sailfish", src: `
+# Sailfish
+
+\`merged\`
+
+- authored the **hermetic build mode**: filesystem-I/O-free, compile-time template compilation for reproducible builds
+- added optional Axum support
+- applied Clippy cleanups and fixed CI/MSRV
+
+Not to be confused with [sailfish-minify](${GH}sailfish-minify), which is my own separate crate.
+
+[github.com/rust-sailfish/sailfish](https://github.com/rust-sailfish/sailfish)`},
+    {name: "rust-analyzer.patch", href: "https://github.com/rust-lang/rust-analyzer", src: `
+# rust-analyzer
+
+\`merged\`
+
+Removed the deprecated \`lens.forceCustomCommands\` config path.
+
+[github.com/rust-lang/rust-analyzer](https://github.com/rust-lang/rust-analyzer)`},
+    {name: "simd-itertools.patch", href: "https://github.com/calebzulawski/simd-itertools", src: `
+# SIMD-itertools
+
+\`merged\`
+
+Dropped unnecessary trait bounds from several SIMD implementations.
+
+[github.com/calebzulawski/simd-itertools](https://github.com/calebzulawski/simd-itertools)`},
+    {name: "rustfmt.issue", href: "https://github.com/rust-lang/rustfmt", src: `
+# rustfmt
+
+\`bug report\`
+
+Reported a bug where ranges broke when the first element was a float.
+
+[github.com/rust-lang/rustfmt](https://github.com/rust-lang/rustfmt)`},
+    {name: "httptoolkit.issue", href: "https://github.com/httptoolkit/httptoolkit", src: `
+# HTTP Toolkit
+
+\`disclosure\`
+
+Disclosed request-interception and certificate-generation bugs affecting .NET apps.
+
+[github.com/httptoolkit/httptoolkit](https://github.com/httptoolkit/httptoolkit)`},
+  ]},
+  {name: "skills", files: [
+    {name: "skills.toml", kind: "toml", src: `
+# years of use, and where
+[rust]
+years = 4
+used_for = ["memflow", "captcha", "backends", "CLI"]
+
+[c]
+years = 6
+used_for = ["Intel kernels", "reverse engineering"]
+
+[cpp]
+years = 5
+used_for = ["systems porting", "refactoring"]
+
+[csharp]
+years = 4
+used_for = ["desktop", "CLI", "tooling"]
+
+[python]
+years = 4
+used_for = ["automation", "ML pipelines"]
+
+[go]
+years = 2
+used_for = ["backend", "scraping", "mobile"]
+
+[sql]
+years = 4
+used_for = ["PostgreSQL", "SQLite"]
+
+[linux]
+years = 7
+used_for = ["daily driver", "home server"]
+
+[tools]
+frameworks = ["Axum", "Tokio", "Tauri", "WASM"]
+storage = ["PostgreSQL", "Redis", "SQLite"]
+build = ["CMake", "Git"]`},
+  ]},
+  {name: "education", files: [
+    {name: "msc-cybersecurity.md", href: "https://www.uvt.ro/en/", src: `
+# MSc, Cybersecurity
+
+\`2024 to 2026\` \`West University of Timișoara\`
+
+- researching supply-chain attack patterns across the entire Rust crate ecosystem
+- took part in curriculum discussions, proposing changes and solutions`},
+    {name: "bsc-computer-science.md", href: "https://www.uvt.ro/en/", src: `
+# BSc, Computer Science (Applied Informatics)
+
+\`2021 to 2024\` \`West University of Timișoara\`
+
+- disclosed multiple security vulnerabilities, improving the university's overall security
+- tutored for two years, helping two cohorts learn advanced programming and enter the workforce`},
+  ]},
+];
+
+const dir = n => FS.find(d => d.name === n);
+
+/* ---------- tiny renderers ---------- */
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const inl = s => esc(s)
+  .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, t, u) => `<a href="${u}"${/^https?:/.test(u) ? ' target="_blank" rel="noopener"' : ""}>${t}</a>`)
+  .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+  .replace(/`([^`]+)`/g, "<code>$1</code>")
+  .replace(/!!([^!]+)!!/g, '<span class="red">$1</span>');
+
+function md(src) {
+  const L = src.trim().split("\n"), out = [];
+  for (let i = 0; i < L.length;) {
+    const l = L[i];
+    if (!l.trim()) { i++; continue; }
+    if (l.startsWith("```")) {
+      i++; while (i < L.length && !L[i].startsWith("```")) out.push(`<div class="ln code blk">${esc(L[i++]) || " "}</div>`); i++; continue;
+    }
+    if (l.startsWith("## ")) { out.push(`<div class="ln h2"><span class="mk">## </span>${inl(l.slice(3))}</div>`); i++; continue; }
+    if (l.startsWith("# ")) { out.push(`<div class="ln h1"><span class="mk"># </span>${inl(l.slice(2))}</div>`); i++; continue; }
+    if (l.startsWith("- ")) { out.push(`<div class="ln li"><span class="mk">-</span><span>${inl(l.slice(2))}</span></div>`); i++; continue; }
+    const buf = [];
+    while (i < L.length && L[i].trim() && !/^(# |## |- |```)/.test(L[i])) buf.push(L[i++]);
+    out.push(`<p class="ln">${inl(buf.join(" "))}</p>`);
+  }
+  return `<div class="pv">${out.join("")}</div>`;
+}
+
+function toml(src) {
+  return `<div class="pv">` + src.trim().split("\n").map(l => {
+    let h;
+    if (!l.trim()) h = " ";
+    else if (/^\s*#/.test(l)) h = `<span class="c">${esc(l)}</span>`;
+    else if (/^\[.*\]$/.test(l.trim())) h = `<span class="y">${esc(l)}</span>`;
+    else {
+      const m = l.match(/^(\s*[\w.-]+)(\s*=\s*)(.*)$/);
+      h = m ? `<span class="cy">${esc(m[1])}</span>${m[2]}` + esc(m[3]).replace(/("[^"]*")|(\b\d+\b)/g, (x, s, n) => s ? `<span class="g">${s}</span>` : `<span class="m">${n}</span>`) : esc(l);
+    }
+    return `<div class="ln code">${h}</div>`;
+  }).join("") + `</div>`;
+}
+
+// GitHub avatar as pixel art, quantized to the Catppuccin palette (like neofetch's image backend)
+const AVATAR_COLORS = {a: "#232634", b: "#292c3c", c: "#303446", d: "#414559", e: "#51576d", f: "#626880", g: "#737994", h: "#838ba7", i: "#949cbb", j: "#a5adce", k: "#b5bfe2", n: "#e78284", o: "#ef9f76", r: "#8cc46c", s: "#5f9150"};
+const AVATAR = [
+  ".....................a...................aa.....................",
+  ".....................sa..................ss.....................",
+  ".....................ara................ara.....................",
+  ".....................ass...............ass......................",
+  "......................ara......aa......asa......................",
+  ".......................ss..aaaagfaaaa.asa.......................",
+  ".......................aaaassscggasssaaaa.......................",
+  ".......................asrrrrrchharrrrrsa.......................",
+  "......................arrrrrrrdhharrrrrrsa......................",
+  ".....................asrrrrrrrdhharrrrrrrs......................",
+  ".....................assssssssaffassssssssa.....................",
+  "....................aaaaaaaaaaaaaaaaaaaaaaaa....................",
+  "...................aaaecfffggfaaabfghgfecaaaa...................",
+  "..................aaaagehhiiidbccahiiihhedcaa...................",
+  "..................aadeehhiiiifaaaaiiiiihgdebaa..................",
+  ".................aacfghhhiiiiiiiiiiiiiihhhgfba..................",
+  ".................abdfghhhiiiiiiiiiiiiiihhhgfdaa.................",
+  "................aadefghhhiiiiiiiiiiiiiihhhgfecaa................",
+  "...............bgadffghhhiiiiiiiiiiiiiihhhgffdana...............",
+  "...............ceaeffghhhiiiiiiiiiiiiiihhhgffennnon.............",
+  "...............abaeffghhhiiiiiiiiiiiiiihhhgffeaaaason...........",
+  "................aaeffghhhiiiiiiiiiiiiiihhhgffdaa...so...........",
+  "...............aaaeefgghhhiiiiiiiiiiiihhhggfecaaa...so..........",
+  "...............a.aadfggeegiiiiiiiiiiiifeeggfdaa.a....o..........",
+  "..................aacebbeedeedeeeeeeecddfdecaa.......on.........",
+  "...............a..aaaaabcbaaaaaaaaaaaabacaaaa........on.........",
+  "..................aaaaaaaaaassrrrsssaaaaaaaaa........on.........",
+  "................a..aaaassssssssssssrrssssaaaa........on.........",
+  ".....................asrrrrrrrrrrrrrrrrrra...........o..........",
+  ".....................aarrrrrrrrrrrrrrrrrra..........so..........",
+  "......................arrrrrrrrrrrrrrrrrra..........on..........",
+  ".................a.a..arrrrrrrrrrrrrrrrrsa.........so...........",
+  "..................a...asrrrrrrrrrrrrrrrra..........on...........",
+  ".......................arrrrrrrrrrrrrrrsa..........o............",
+  ".......................asrrrrrrrrrrrrrraa.........oo............",
+  "........................asrrrrrrrrrrrrsa..........oa............",
+  ".........................asrrrrrrrrrrsa...........o.............",
+  ".........................aasrrrrrrrsaaa...........o.............",
+  ".........................assassrssasssa...........o.............",
+  ".........................arrrssasssrrsa...........os............",
+  "........................aarrrrrrrrrrrsaa..........no............",
+  "....................aaaaaarrsrrsrrrsrsaaaaaa.......os...........",
+  "................aaaaaaaaaasrsrrsrrrsraaaaaaaaaaa...ao...........",
+  "............aaaaaaaaaaaaaaasrrrrrrsrsaaaaaaaaaaaaaaanon.........",
+  ".........aaaaaaaaaaaaaaaaaaasrrrrrssaaaaaaaaaaaaaaaaaaonn.......",
+  "........aaaaaaaaaaaaaaaaaaaaasrrrsaaaaaaaaaaaaaaaaaaaaasoooon...",
+  "......aaaaaaaaaaaaaaaaaaaaaaaaassaaaaaaaaaaaaaaaaaaaaaaaaa.sson.",
+  "......aaaaaaadeeddffeaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa....o.",
+  ".....aaaaaaaadfgfadfffaaaaaaafkkkjbaaaaaaaaaaaaaaaaaaaaaaaa...on",
+  "....aaaaaaaaaahihaafiidaaaaaaiaaadhaaaaaaaaaaaaaaaaaaaaaaaaa..on",
+  "...aaaaaaaaaaaiiiaafjjeaaaaaajgffifaaaaaaaaaaaaaaaaaaaaaaaaa..o.",
+  "...aaaaaaaaaaaghhaafhhaaaaaaaaeeedaacaaaaaeeaaaaaaaaaaaaaaaaaon.",
+  "..aaaaaaaaaaaafgfaeffaaehedaaagefcaageaaaaefaadhcheaaaaaaaaaan..",
+  "..aaaaaaaaaaaafffeffcadhcbgdaggaegaahfaaaaddaagfafgaaaaaaaaaaa..",
+  "..aaaaaaaaaaaaeedaeeecfeaaeebedadfdageagcafgadeddffbaaaaaaaaaa..",
+  ".aaaaaaaaaaaaadddabddeedaaddcdcadddafdeaaadeacddaaaaaaaaaaaaaa..",
+  ".aaaaaaaaaaaaadaaaadaaedaabbadbadbaaddedaaddaaccaabaaaaaaaaaaa..",
+  ".aaaaaaaaaaaaadaabadaacfddbaaadcbaaacaccaadcaacaaacaaaaaaaaaaa..",
+  ".aaaaaaaaaaaaaaaaccadccaaaaaaaaaaaaaabbbcabaaaaaaaaaaaaaaaaaaaa.",
+  ".aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+  ".aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+  ".aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+  ".aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+  ".aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+];
+function avatar() {
+  let rects = "";
+  AVATAR.forEach((row, y) => {
+    for (let x = 0; x < row.length;) {
+      const c = row[x];
+      let n = 1;
+      while (row[x + n] === c) n++;   // one rect per horizontal run of the same colour
+      if (c !== ".") rects += `<rect x="${x}" y="${y}" width="${n}" height="1" fill="${AVATAR_COLORS[c]}"/>`;
+      x += n;
+    }
+  });
+  return `<svg class="avatar" shape-rendering="crispEdges" viewBox="0 0 ${AVATAR[0].length} ${AVATAR.length}" role="img" aria-label="Avatar: green Android head wearing a VR headset, with the Rookie logo">${rects}</svg>`;
+}
+
+function uptime() {
+  const s = new Date(2022, 8, 1), n = new Date();
+  let m = (n.getFullYear() - s.getFullYear()) * 12 + n.getMonth() - s.getMonth();
+  const y = Math.floor(m / 12); m %= 12;
+  return `${y} years${m ? `, ${m} month${m > 1 ? "s" : ""}` : ""} at Intel`;
+}
+
+function neofetch() {
+  const row = (k, v) => `<div><span class="k">${k}</span>: ${v}</div>`;
+  const cols = ["dim2", "red", "green", "yellow", "blue", "mag", "cyan", "fg"];
+  return `<div class="neo">${avatar()}<div class="info">
+    <div><span class="u">paul</span>@<span class="u">foarte.top</span></div>
+    <div class="rule">---------------</div>
+    ${row("Name", "Paul-Andrei Abrudan")}
+    ${row("Host", "Intel, Software System Engineer")}
+    ${row("Kernel", "AI accelerators inside x86 CPUs (14th gen+)")}
+    ${row("Uptime", uptime())}
+    ${row("OS", "Linux, daily driver and home server for 7 years")}
+    ${row("Languages", "Rust, C, C++, C#, Python, Go, SQL")}
+    ${row("Packages", `${dir("projects").files.length} projects, ${dir("upstream").files.length} upstream contributions`)}
+    ${row("Disclosures", `${dir("disclosures").files.filter(f => f.name !== "README.md").length}, including 1 public advisory`)}
+    ${row("Focus", "low-level systems, performance, security research")}
+    ${row("Location", "Timișoara, Romania (remote-friendly)")}
+    ${row("Education", "MSc Cybersecurity, BSc Computer Science")}
+    ${row("Contact", '<a href="mailto:paulandreiabrudan@proton.me">paulandreiabrudan@proton.me</a>')}
+    <div class="swatch">${cols.map(c => `<i style="background:var(--${c})"></i>`).join("")}</div>
+  </div></div>
+  <p class="tip">This page works like a terminal file manager. Use <b>←</b> <b>→</b> (or h l) to change folder, <b>↑</b> <b>↓</b> (or k j) to pick a file, and <b>Enter</b> to open its link. With a mouse, click a file to select it and click it again to open its link. Links can be shared: the address always points at the open file.</p>`;
+}
+
+/* ---------- state + rendering ---------- */
+const $ = id => document.getElementById(id);
+const left = $("left"), mid = $("mid"), preview = $("preview");
+const narrow = matchMedia("(max-width:760px)");
+let D = 0, F = 0, rows = [];
+
+const bytes = f => new Blob([f.src || neofetch().replace(/<[^>]+>/g, "")]).size;
+const human = n => n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} K`;
+const ext = n => n.split(".").pop();
+
+FS.forEach((d, i) => {
+  const b = document.createElement("button");
+  b.className = "row dir";
+  b.innerHTML = `<span class="nm">${d.name}</span><span class="sz">${d.files.length}</span>`;
+  b.addEventListener("click", () => openDir(i));
+  left.append(b);
+});
+
+function openDir(i, focus) {
+  D = (i + FS.length) % FS.length;
+  [...left.children].forEach((b, j) => { b.classList.toggle("sel", j === D); b.setAttribute("aria-current", j === D ? "true" : "false"); });
+  left.children[D].scrollIntoView({block: "nearest", inline: "nearest"});
+  mid.replaceChildren(); rows = [];
+  FS[D].files.forEach((f, j) => {
+    const b = document.createElement("button");
+    b.className = `row ext-${ext(f.name)}${f.crit ? " crit" : ""}`;
+    b.setAttribute("role", "option");
+    b.innerHTML = `<span class="nm"></span><span class="sz">${human(bytes(f))}</span>`;
+    b.querySelector(".nm").textContent = f.name;
+    // a second click on the already-selected file opens it, like ranger's l
+    b.addEventListener("pointerdown", () => { b.dataset.was = F === j ? "1" : ""; });
+    b.addEventListener("click", () => { if (b.dataset.was && f.href && !narrow.matches) go(f); else pick(j); });
+    // on phones a single tap only selects, so double-tap opens; on desktop the second click already opened it
+    b.addEventListener("dblclick", () => narrow.matches && f.href && go(f));
+    b.addEventListener("focus", () => F !== j && pick(j));
+    rows.push(b); mid.append(b);
+  });
+  pick(0, focus);
+}
+
+// one file, with a bat-style header
+function article(d, f, j) {
+  const hint = f.href ? `<span>Enter: open ${f.href.replace(/^(mailto:|tel:|https?:\/\/(www\.)?)/, "")}</span>` : "";
+  return `<article class="pf" data-j="${j}"><div class="pvh"><span>File: <b>${d.name}/${f.name}</b></span>${hint}</div>` +
+    (f.kind === "neo" ? neofetch() : f.kind === "toml" ? toml(f.src) : md(f.src)) + `</article>`;
+}
+
+// wide screens show the whole folder stacked (cat *), so short files don't leave the pane empty;
+// narrow screens show only the picked file, inline under it
+let shown = "";
+function renderPreview() {
+  const d = FS[D], key = narrow.matches ? `${D}:${F}` : `${D}`;
+  if (key === shown) return;
+  shown = key;
+  preview.innerHTML = narrow.matches ? article(d, d.files[F], F) : d.files.map((f, j) => article(d, f, j)).join("");
+}
+
+function pick(j, focus, fromScroll) {
+  F = Math.max(0, Math.min(rows.length - 1, j));
+  const d = FS[D], f = d.files[F];
+  rows.forEach((r, k) => { r.classList.toggle("sel", k === F); r.setAttribute("aria-selected", k === F); });
+  $("cwd").textContent = `~/${d.name}`; $("cfile").textContent = f.name;
+  $("ssize").textContent = human(bytes(f)); $("sname").textContent = f.name;
+  $("spos").textContent = `${F + 1}/${rows.length}  All`;
+  renderPreview();
+  const art = preview.querySelector(`.pf[data-j="${F}"]`);
+  preview.querySelectorAll(".pf").forEach(a => a.classList.toggle("cur", a === art));
+  if (narrow.matches) rows[F].after(preview); else if (preview.previousElementSibling !== $("g2")) $("g2").after(preview);
+  if (!narrow.matches && !fromScroll) {
+    autoScrollUntil = Date.now() + 800;
+    preview.scrollTo({top: art.offsetTop, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+  }
+  if (focus) rows[F].focus({preventScroll: true});
+  rows[F].scrollIntoView({block: "nearest"});
+  setHash();
+}
+
+// the address always names the open file, so any view can be shared: #projects/pow-captcha.md
+function setHash() {
+  const h = D === 0 && F === 0 ? "" : `#${FS[D].name}/${FS[D].files[F].name}`;
+  try { if (location.hash !== h) history.replaceState(null, "", h || location.pathname + location.search); } catch (_) {}
+}
+function fromHash() {
+  const [dn, fn] = decodeURIComponent(location.hash.slice(1)).split("/");
+  const di = FS.findIndex(d => d.name === dn);
+  if (di < 0) return false;
+  openDir(di);
+  pick(Math.max(0, FS[di].files.findIndex(f => f.name === fn)), true);
+  return true;
+}
+const start = () => fromHash() || openDir(0, true);
+addEventListener("hashchange", fromHash);
+
+// scrolling the stacked preview by hand moves the selection along with it
+let autoScrollUntil = 0, spyQueued = false;
+preview.addEventListener("scroll", () => {
+  if (narrow.matches || Date.now() < autoScrollUntil || spyQueued) return;
+  spyQueued = true;
+  requestAnimationFrame(() => {
+    spyQueued = false;
+    const arts = [...preview.querySelectorAll(".pf")];
+    let cur = 0;
+    arts.forEach((a, j) => { if (a.offsetTop <= preview.scrollTop + 60) cur = j; });
+    if (preview.scrollTop + preview.clientHeight >= preview.scrollHeight - 2) cur = arts.length - 1;
+    if (cur !== F) pick(cur, false, true);
+  });
+});
+preview.addEventListener("scrollend", () => { autoScrollUntil = 0; });
+
+// print / save as PDF: render every folder into #print just before the dialog opens
+addEventListener("beforeprint", () => {
+  const p = $("print");
+  if (!p.childElementCount) p.innerHTML = FS.map(d => `<section><div class="pdir">~/${d.name}/</div>${d.files.map((f, j) => article(d, f, j)).join("")}</section>`).join("");
+});
+
+let lastGo = 0;
+function go(f) {
+  if (Date.now() - lastGo < 600) return;   // a fast double-click must not open two tabs
+  lastGo = Date.now();
+  if (/^https?:/.test(f.href)) window.open(f.href, "_blank", "noopener"); else location.href = f.href;
+}
+
+narrow.addEventListener("change", () => pick(F));
+
+document.addEventListener("keydown", e => {
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  const k = e.key, f = FS[D].files[F];
+  if (document.activeElement?.classList.contains("gutter")) return;   // the gutter handles its own keys
+  if ((k === "Enter" || k === " ") && document.activeElement?.closest("a, #left")) return;
+  if (k === "ArrowDown" || k === "j") { e.preventDefault(); pick(F + 1, true); }
+  else if (k === "ArrowUp" || k === "k") { e.preventDefault(); pick(F - 1, true); }
+  else if (k === "ArrowRight" || k === "l") { e.preventDefault(); openDir(D + 1, true); }
+  else if (k === "ArrowLeft" || k === "h") { e.preventDefault(); openDir(D - 1, true); }
+  else if (k === "g" || k === "Home") { e.preventDefault(); pick(0, true); }
+  else if (k === "G" || k === "End") { e.preventDefault(); pick(rows.length - 1, true); }
+  else if (k === "Enter" && f.href) { e.preventDefault(); go(f); }
+});
+
+/* ---------- resizable columns ---------- */
+const cols = document.querySelector(".cols");
+const GUTTERS = {
+  g1: {v: "--w1", col: left, min: 120, max: () => cols.clientWidth * 0.35},
+  g2: {v: "--w2", col: mid,  min: 180, max: () => cols.clientWidth * 0.5},
+};
+function setWidth(id, px, save = true) {
+  const g = GUTTERS[id];
+  // never squeeze the preview below 360px
+  const room = cols.clientWidth - 360 - (id === "g1" ? mid.offsetWidth : left.offsetWidth);
+  px = Math.round(Math.max(g.min, Math.min(px, g.max(), room)));
+  cols.style.setProperty(g.v, px + "px");
+  $(id).setAttribute("aria-valuenow", px);
+  if (save) try { localStorage.setItem("cv" + g.v, px); } catch (_) {}
+}
+function resetWidth(id) {
+  cols.style.removeProperty(GUTTERS[id].v);
+  try { localStorage.removeItem("cv" + GUTTERS[id].v); } catch (_) {}
+}
+for (const [id, g] of Object.entries(GUTTERS)) {
+  const el = $(id);
+  el.setAttribute("aria-valuemin", g.min);
+  try { const w = +localStorage.getItem("cv" + g.v); if (w) cols.style.setProperty(g.v, w + "px"); } catch (_) {}
+  el.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    el.classList.add("drag"); document.body.classList.add("resizing");
+    const x0 = e.clientX, w0 = g.col.getBoundingClientRect().width;
+    const move = ev => setWidth(id, w0 + ev.clientX - x0);
+    const up = () => {
+      el.classList.remove("drag"); document.body.classList.remove("resizing");
+      el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up);
+    };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+  });
+  el.addEventListener("dblclick", () => resetWidth(id));
+  el.addEventListener("keydown", e => {
+    const step = e.shiftKey ? 64 : 16, w = g.col.getBoundingClientRect().width;
+    if (e.key === "ArrowLeft") { e.preventDefault(); setWidth(id, w - step); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); setWidth(id, w + step); }
+    else if (e.key === "Home" || e.key === "Enter") { e.preventDefault(); resetWidth(id); }
+  });
+}
+// keep saved widths sane when the window shrinks
+addEventListener("resize", () => {
+  if (narrow.matches) return;
+  for (const [id, g] of Object.entries(GUTTERS)) if (cols.style.getPropertyValue(g.v)) setWidth(id, g.col.getBoundingClientRect().width, false);
+});
+
+/* ---------- clock + dates in Timișoara ---------- */
+const TZ = "Europe/Bucharest";
+const clockF = new Intl.DateTimeFormat("en-GB", {timeZone: TZ, hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short", year: "2-digit", hour12: false});
+const stampF = new Intl.DateTimeFormat("sv-SE", {timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"});
+function tick() {
+  const n = new Date();
+  $("clock").textContent = `"foarte.top" ${clockF.format(n).replace(",", "")}`;
+  $("sdate").textContent = stampF.format(n);
+}
+tick(); setInterval(tick, 15000);
+
+/* ---------- boot log, once per session ---------- */
+const loginF = new Intl.DateTimeFormat("en-GB", {timeZone: TZ, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false});
+const OK = t => `[<span class="ok">  OK  </span>] ${t}`;
+const BOOT = [
+  `<span class="t">[    0.000000]</span> Linux version 7y-daily-driver (paul@foarte.top) #1 SMP PREEMPT_DYNAMIC`,
+  `<span class="t">[    0.000000]</span> Command line: BOOT_IMAGE=/boot/vmlinuz root=/dev/nvme0n1p2 rw quiet`,
+  `<span class="t">[    0.418220]</span> x86: AI accelerator kernel infrastructure online (Intel, 14th gen+)`,
+  `<span class="t">[    1.204118]</span> rust: 4 years of experience loaded`,
+  OK(`Started <span class="h">Build-and-test loop</span> (~5 min → &lt;10 s).`),
+  OK(`Started <span class="h">Regression watchdog</span>.`),
+  OK(`Mounted <span class="h">/home/paul/projects</span> (${dir("projects").files.length} projects).`),
+  OK(`Reached target <span class="h">Responsible disclosure</span>.`),
+  ``,
+  `foarte.top login: paul`,
+  `Last login: ${loginF.format(new Date()).replace(",", "")} from Timișoara`,
+  `<span class="u">paul@foarte.top</span> <span class="d">~</span> $ ranger`,
+];
+function boot() {
+  const el = $("boot");
+  let seen = false;
+  try { seen = sessionStorage.getItem("booted") === "1"; sessionStorage.setItem("booted", "1"); } catch (_) {}
+  if (seen || matchMedia("(prefers-reduced-motion: reduce)").matches) { start(); return; }
+  el.hidden = false;
+  el.innerHTML = `<span class="skip">click or press any key to skip</span>`;
+  let i = 0, done = false; const timers = [];
+  const finish = () => {
+    if (done) return; done = true;
+    timers.forEach(clearTimeout); el.hidden = true;
+    removeEventListener("keydown", skip, true);
+    start();
+  };
+  const skip = e => { e.preventDefault(); e.stopPropagation(); finish(); };
+  addEventListener("keydown", skip, true);
+  el.addEventListener("click", finish);
+  const step = () => {
+    if (i >= BOOT.length) { timers.push(setTimeout(finish, 700)); return; }
+    el.innerHTML += BOOT[i] + "\n";
+    timers.push(setTimeout(step, i < 4 ? 90 : i < 8 ? 190 : 260)); i++;
+  };
+  step();
+}
+boot();
+</script>
+</body>
+</html>
